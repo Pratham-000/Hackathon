@@ -1,0 +1,183 @@
+.
+├── .env
+├── .gitignore
+├── Readme.md
+├── client
+│   ├── .gitignore
+│   ├── README.md
+│   ├── api
+│   │   ├── aiApi.js
+│   │   ├── authApi.js
+│   │   ├── axiosClient.js
+│   │   ├── budgetApi.js
+│   │   ├── dashboardApi.js
+│   │   └── scenarioApi.js
+│   ├── app
+│   ├── assets
+│   │   ├── icons
+│   │   └── images
+│   ├── components
+│   │   ├── budget
+│   │   │   ├── BudgetForm.jsx
+│   │   │   ├── KPISection.jsx
+│   │   │   ├── ScenarioBuilder.jsx
+│   │   │   └── VersionList.jsx
+│   │   ├── charts
+│   │   │   ├── CostBreakdownChart.jsx
+│   │   │   ├── MarginChart.jsx
+│   │   │   ├── RevenueChart.jsx
+│   │   │   └── ScenarioComparisonChart.jsx
+│   │   ├── common
+│   │   │   ├── Button.jsx
+│   │   │   ├── Card.jsx
+│   │   │   ├── EmptyState.jsx
+│   │   │   ├── Input.jsx
+│   │   │   ├── Loader.jsx
+│   │   │   └── Modal.jsx
+│   │   └── layout
+│   │       ├── AppLayout.jsx
+│   │       ├── Header.jsx
+│   │       ├── Navbar.jsx
+│   │       └── Sidebar.jsx
+│   ├── eslint.config.js
+│   ├── features
+│   │   ├── auth
+│   │   │   ├── authSlice.js
+│   │   │   ├── components
+│   │   │   ├── hooks
+│   │   │   └── pages
+│   │   │       ├── LoginPage.jsx
+│   │   │       └── RegisterPage.jsx
+│   │   ├── budgets
+│   │   │   ├── budgetSlice.js
+│   │   │   ├── components
+│   │   │   └── pages
+│   │   │       ├── BudgetDetailsPage.jsx
+│   │   │       ├── BudgetsPage.jsx
+│   │   │       └── CreateBudgetPage.jsx
+│   │   ├── dashboard
+│   │   │   ├── components
+│   │   │   ├── dashboardSlice.js
+│   │   │   └── pages
+│   │   │       ├── DashboardPage.jsx
+│   │   │       └── budgetSlice.js
+│   │   ├── insights
+│   │   │   ├── components
+│   │   │   ├── insightsSlice.js
+│   │   │   └── pages
+│   │   │       └── AIInsightsPage.jsx
+│   │   ├── pages
+│   │   └── scenarios
+│   │       ├── budgetSlice.js
+│   │       ├── components
+│   │       └── pages
+│   │           └── ScenarioPlannerPage.jsx
+│   ├── hooks
+│   │   ├── useAuth.js
+│   │   ├── useDebounce.js
+│   │   └── useTheme.js
+│   ├── index.html
+│   ├── lib
+│   │   ├── constants.js
+│   │   ├── formatters.js
+│   │   ├── helpers.js
+│   │   └── validators.js
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── pages
+│   │   ├── HomePage.jsx
+│   │   ├── NotFoundPage.jsx
+│   │   ├── UnauthorizedPage.jsx
+│   │   ├── styles
+│   │   │   ├── index.css
+│   │   │   ├── theme.css
+│   │   │   └── variables.css
+│   │   └── utils
+│   │       ├── chartUtils.js
+│   │       ├── date.js
+│   │       └── storage.js
+│   ├── public
+│   │   ├── favicon.svg
+│   │   └── icons.svg
+│   ├── src
+│   │   ├── App.jsx
+│   │   ├── index.css
+│   │   └── main.jsx
+│   └── vite.config.js
+├── package.json
+├── project-structure.txt
+├── server
+│   ├── .env
+│   ├── package.json
+│   ├── prisma
+│   │   ├── schema.prisma
+│   │   └── seed.js
+│   ├── src
+│   │   ├── app.js
+│   │   ├── config
+│   │   │   ├── ai.js
+│   │   │   ├── db.js
+│   │   │   └── env.js
+│   │   ├── db
+│   │   │   ├── migrations
+│   │   │   ├── queries
+│   │   │   ├── schema.sql
+│   │   │   └── seeds
+│   │   ├── middlewares
+│   │   │   ├── auth.middleware.js
+│   │   │   ├── error.middleware.js
+│   │   │   ├── rateLimiter.middleware.js
+│   │   │   └── validate.middleware.js
+│   │   ├── modules
+│   │   │   ├── auth
+│   │   │   │   ├── auth.controller.js
+│   │   │   │   ├── auth.mapper.js
+│   │   │   │   ├── auth.repository.js
+│   │   │   │   ├── auth.routes.js
+│   │   │   │   ├── auth.service.js
+│   │   │   │   └── auth.validation.js
+│   │   │   ├── budgets
+│   │   │   │   ├── budget.controller.js
+│   │   │   │   ├── budget.mapper.js
+│   │   │   │   ├── budget.repository.js
+│   │   │   │   ├── budget.routes.js
+│   │   │   │   ├── budget.service.js
+│   │   │   │   └── budget.validation.js
+│   │   │   ├── dashboard
+│   │   │   │   ├── dashboard.controller.js
+│   │   │   │   ├── dashboard.queries.js
+│   │   │   │   ├── dashboard.routes.js
+│   │   │   │   └── dashboard.service.js
+│   │   │   ├── insights
+│   │   │   │   ├── insights.controller.js
+│   │   │   │   ├── insights.routes.js
+│   │   │   │   ├── insights.service.js
+│   │   │   │   ├── prompt.builder.js
+│   │   │   │   └── prompt.templates.js
+│   │   │   ├── scenarios
+│   │   │   │   ├── scenario.controller.js
+│   │   │   │   ├── scenario.engine.js
+│   │   │   │   ├── scenario.repository.js
+│   │   │   │   ├── scenario.routes.js
+│   │   │   │   └── scenario.service.js
+│   │   │   └── versions
+│   │   │       ├── version.controller.js
+│   │   │       ├── version.repository.js
+│   │   │       ├── version.routes.js
+│   │   │       └── version.service.js
+│   │   ├── routes
+│   │   │   ├── health.routes.js
+│   │   │   └── index.js
+│   │   ├── server.js
+│   │   └── utils
+│   │       ├── ApiError.js
+│   │       ├── ApiResponse.js
+│   │       ├── asyncHandler.js
+│   │       ├── calculations.js
+│   │       └── logger.js
+│   └── tests
+│       ├── integration
+│       └── unit
+└── shared
+
+59 directories, 122 files
