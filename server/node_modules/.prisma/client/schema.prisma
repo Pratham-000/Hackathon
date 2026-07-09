@@ -6,3 +6,442 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum UserRole {
+  SUPER_ADMIN
+  ORG_ADMIN
+  FINANCE_MANAGER
+  HR_MANAGER
+  EMPLOYEE
+}
+
+enum BudgetStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum VersionStatus {
+  DRAFT
+  FINAL
+  LOCKED
+}
+
+enum AssumptionType {
+  REVENUE_GROWTH
+  COST_GROWTH
+  HEADCOUNT_CHANGE
+  SALARY_INCREMENT
+  ATTRITION_RATE
+  BONUS_PERCENT
+  CUSTOM
+}
+
+enum ScenarioType {
+  BASELINE
+  BEST_CASE
+  WORST_CASE
+  CUSTOM
+}
+
+enum ForecastPeriod {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum InsightType {
+  BUDGET
+  SCENARIO
+  PAYROLL
+  FORECAST
+  WORKFORCE
+  KPI
+}
+
+model User {
+  id             String        @id @default(uuid())
+  fullName       String
+  email          String        @unique
+  passwordHash   String
+  role           UserRole      @default(EMPLOYEE)
+  isActive       Boolean       @default(true)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  createdBudgets   Budget[]        @relation("BudgetCreatedBy")
+  createdVersions  BudgetVersion[] @relation("VersionCreatedBy")
+  createdScenarios Scenario[]      @relation("ScenarioCreatedBy")
+  aiInsights       AIInsight[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@map("users")
+}
+
+model Organization {
+  id              String   @id @default(uuid())
+  name            String
+  industry        String?
+  currency        String   @default("INR")
+  fiscalYearStart Int      @default(4)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  users       User[]
+  departments Department[]
+  employees   Employee[]
+  roles       Role[]
+  skills      Skill[]
+  budgets     Budget[]
+  payrolls    Payroll[]
+  forecasts   Forecast[]
+  scenarios   Scenario[]
+  aiInsights  AIInsight[]
+
+  @@map("organizations")
+}
+
+model Department {
+  id             String       @id @default(uuid())
+  name           String
+  code           String?
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  employees Employee[]
+  budgets   Budget[]
+  forecasts Forecast[]
+  payrolls  Payroll[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("departments")
+}
+
+model Role {
+  id             String       @id @default(uuid())
+  title          String
+  level          String?
+  baseSalaryMin  Decimal?     @db.Decimal(12, 2)
+  baseSalaryMax  Decimal?     @db.Decimal(12, 2)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  employees Employee[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, title])
+  @@index([organizationId])
+  @@map("roles")
+}
+
+model Skill {
+  id             String       @id @default(uuid())
+  name           String
+  category       String?
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  employeeSkills EmployeeSkill[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("skills")
+}
+
+model Employee {
+  id               String    @id @default(uuid())
+  employeeCode     String?
+  fullName         String
+  email            String?   @unique
+  salary           Decimal   @db.Decimal(12, 2)
+  bonus            Decimal?  @db.Decimal(12, 2)
+  experienceYears  Int?      @default(0)
+  performanceScore Decimal?  @db.Decimal(5, 2)
+  workloadScore    Decimal?  @db.Decimal(5, 2)
+  isActive         Boolean   @default(true)
+  hiredAt          DateTime?
+  organizationId   String
+  departmentId     String
+  roleId           String
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  department   Department   @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  role         Role         @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  employeeSkills EmployeeSkill[]
+  payrolls       Payroll[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, employeeCode])
+  @@index([organizationId])
+  @@index([departmentId])
+  @@index([roleId])
+  @@map("employees")
+}
+
+model EmployeeSkill {
+  id          String @id @default(uuid())
+  employeeId  String
+  skillId     String
+  proficiency Int    @default(1) // 1 to 5
+  yearsUsed   Int?   @default(0)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  skill    Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([employeeId, skillId])
+  @@index([employeeId])
+  @@index([skillId])
+  @@map("employee_skills")
+}
+
+model Budget {
+  id             String       @id @default(uuid())
+  name           String
+  description    String?
+  totalRevenue   Decimal      @db.Decimal(14, 2)
+  totalExpenses  Decimal      @db.Decimal(14, 2)
+  totalProfit    Decimal      @db.Decimal(14, 2)
+  status         BudgetStatus @default(DRAFT)
+  fiscalYear     Int
+  organizationId String
+  departmentId   String?
+  createdById    String
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  department   Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  createdBy    User         @relation("BudgetCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  versions   BudgetVersion[]
+  scenarios  Scenario[]
+  forecasts  Forecast[]
+  payrolls   Payroll[]
+  aiInsights AIInsight[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([departmentId])
+  @@index([createdById])
+  @@map("budgets")
+}
+
+model BudgetVersion {
+  id            String        @id @default(uuid())
+  budgetId      String
+  versionNumber Int
+  name          String
+  notes         String?
+  status        VersionStatus @default(DRAFT)
+  revenue       Decimal       @db.Decimal(14, 2)
+  expenses      Decimal       @db.Decimal(14, 2)
+  profit        Decimal       @db.Decimal(14, 2)
+  createdById   String
+
+  budget    Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  createdBy User   @relation("VersionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  assumptions Assumption[]
+  scenarios   Scenario[]
+  forecasts   Forecast[]
+  payrolls    Payroll[]
+  aiInsights  AIInsight[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([budgetId, versionNumber])
+  @@index([budgetId])
+  @@index([createdById])
+  @@map("budget_versions")
+}
+
+model Assumption {
+  id              String         @id @default(uuid())
+  name            String
+  type            AssumptionType
+  value           Decimal        @db.Decimal(10, 2)
+  unit            String? // %, amount, count
+  description     String?
+  budgetVersionId String
+
+  budgetVersion BudgetVersion @relation(fields: [budgetVersionId], references: [id], onDelete: Cascade)
+  scenarios     Scenario[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([budgetVersionId])
+  @@map("assumptions")
+}
+
+model Scenario {
+  id          String       @id @default(uuid())
+  name        String
+  description String?
+  type        ScenarioType @default(CUSTOM)
+
+  budgetId        String
+  budgetVersionId String
+  organizationId  String
+  createdById     String
+
+  revenueImpact Decimal? @db.Decimal(14, 2)
+  expenseImpact Decimal? @db.Decimal(14, 2)
+  profitImpact  Decimal? @db.Decimal(14, 2)
+  payrollImpact Decimal? @db.Decimal(14, 2)
+
+  budget        Budget        @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  budgetVersion BudgetVersion @relation(fields: [budgetVersionId], references: [id], onDelete: Cascade)
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy     User          @relation("ScenarioCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  assumptions     Assumption[]
+  scenarioResults ScenarioResult[]
+  forecasts       Forecast[]
+  aiInsights      AIInsight[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([budgetId])
+  @@index([budgetVersionId])
+  @@index([organizationId])
+  @@index([createdById])
+  @@map("scenarios")
+}
+
+model ScenarioResult {
+  id            String   @id @default(uuid())
+  scenarioId    String
+  metricName    String
+  metricValue   Decimal  @db.Decimal(14, 2)
+  metricUnit    String?
+  changePercent Decimal? @db.Decimal(8, 2)
+  notes         String?
+
+  scenario Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([scenarioId])
+  @@map("scenario_results")
+}
+
+model Forecast {
+  id        String         @id @default(uuid())
+  title     String
+  period    ForecastPeriod
+  startDate DateTime
+  endDate   DateTime
+
+  projectedRevenue   Decimal  @db.Decimal(14, 2)
+  projectedExpenses  Decimal  @db.Decimal(14, 2)
+  projectedProfit    Decimal  @db.Decimal(14, 2)
+  projectedHeadcount Int?
+  projectedPayroll   Decimal? @db.Decimal(14, 2)
+
+  organizationId  String
+  departmentId    String?
+  budgetId        String?
+  budgetVersionId String?
+  scenarioId      String?
+
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  department    Department?    @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  budget        Budget?        @relation(fields: [budgetId], references: [id], onDelete: SetNull)
+  budgetVersion BudgetVersion? @relation(fields: [budgetVersionId], references: [id], onDelete: SetNull)
+  scenario      Scenario?      @relation(fields: [scenarioId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([departmentId])
+  @@index([budgetId])
+  @@index([budgetVersionId])
+  @@index([scenarioId])
+  @@map("forecasts")
+}
+
+model Payroll {
+  id              String  @id @default(uuid())
+  month           Int
+  year            Int
+  baseSalaryTotal Decimal @db.Decimal(14, 2)
+  bonusTotal      Decimal @db.Decimal(14, 2)
+  deductionsTotal Decimal @db.Decimal(14, 2)
+  netPayrollTotal Decimal @db.Decimal(14, 2)
+
+  organizationId  String
+  departmentId    String?
+  employeeId      String?
+  budgetId        String?
+  budgetVersionId String?
+
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  department    Department?    @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  employee      Employee?      @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  budget        Budget?        @relation(fields: [budgetId], references: [id], onDelete: SetNull)
+  budgetVersion BudgetVersion? @relation(fields: [budgetVersionId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([departmentId])
+  @@index([employeeId])
+  @@index([budgetId])
+  @@index([budgetVersionId])
+  @@map("payrolls")
+}
+
+model AIInsight {
+  id              String      @id @default(uuid())
+  title           String
+  type            InsightType
+  prompt          String?
+  response        String
+  confidenceScore Decimal?    @db.Decimal(5, 2)
+
+  userId          String?
+  organizationId  String
+  budgetId        String?
+  budgetVersionId String?
+  scenarioId      String?
+
+  user          User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  budget        Budget?        @relation(fields: [budgetId], references: [id], onDelete: SetNull)
+  budgetVersion BudgetVersion? @relation(fields: [budgetVersionId], references: [id], onDelete: SetNull)
+  scenario      Scenario?      @relation(fields: [scenarioId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([budgetId])
+  @@index([budgetVersionId])
+  @@index([scenarioId])
+  @@map("ai_insights")
+}
