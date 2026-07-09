@@ -12,24 +12,24 @@ class AuthRepository {
       where: { id },
       select: {
         id: true,
-        name: true,
+        fullName: true,
         email: true,
         role: true,
       },
     });
   }
 
-  async createUser({ name, email, password, role }) {
+  async createUser({ fullName, email, passwordHash, role }) {
     return prisma.user.create({
       data: {
-        name,
+        fullName,
         email,
-        password,
+        passwordHash,
         role,
       },
       select: {
         id: true,
-        name: true,
+        fullName: true,
         email: true,
         role: true,
       },

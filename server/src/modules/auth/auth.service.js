@@ -2,17 +2,34 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const authRepository = require('./auth.repository');
 
+const getJwtSecret = () => process.env.JWT_SECRET || 'hackathon-dev-secret';
+
+const normalizeRole = (role) => {
+  const mapped = String(role || '').toUpperCase();
+  const roleMap = {
+    ADMIN: 'SUPER_ADMIN',
+    ORG_ADMIN: 'ORG_ADMIN',
+    FINANCE: 'FINANCE_MANAGER',
+    FINANCE_MANAGER: 'FINANCE_MANAGER',
+    HR: 'HR_MANAGER',
+    HR_MANAGER: 'HR_MANAGER',
+    EMPLOYEE: 'EMPLOYEE',
+  };
+
+  return roleMap[mapped] || 'EMPLOYEE';
+};
+
 class AuthService {
   async register(payload) {
-    const { name, email, password, role } = payload;
+    const { fullName, email, password, role } = payload;
 
-    if (!name || !email || !password) {
-      const error = new Error('Name, email and password are required');
+    if (!fullName || !email || !password) {
+      const error = new Error('fullName, email and password are required');
       error.statusCode = 400;
       throw error;
     }
 
-    const existingUser = await authRepository.findByEmail(email);
+    const existingUser = await authRepository.findByEmail(email.trim().toLowerCase());
     if (existingUser) {
       const error = new Error('Email already registered');
       error.statusCode = 409;
@@ -22,15 +39,15 @@ class AuthService {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await authRepository.createUser({
-      name,
-      email,
-      password: hashedPassword,
-      role: role || 'USER',
+      fullName: fullName.trim(),
+      email: email.trim().toLowerCase(),
+      passwordHash: hashedPassword,
+      role: normalizeRole(role),
     });
 
     return {
       id: user.id,
-      name: user.name,
+      fullName: user.fullName,
       email: user.email,
       role: user.role,
     };
@@ -45,14 +62,14 @@ class AuthService {
       throw error;
     }
 
-    const user = await authRepository.findByEmail(email);
+    const user = await authRepository.findByEmail(email.trim().toLowerCase());
     if (!user) {
       const error = new Error('Invalid email or password');
       error.statusCode = 401;
       throw error;
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
     if (!isPasswordValid) {
       const error = new Error('Invalid email or password');
       error.statusCode = 401;
@@ -65,7 +82,7 @@ class AuthService {
         email: user.email,
         role: user.role,
       },
-      process.env.JWT_SECRET,
+      getJwtSecret(),
       { expiresIn: '1d' }
     );
 
@@ -73,7 +90,7 @@ class AuthService {
       token,
       user: {
         id: user.id,
-        name: user.name,
+        fullName: user.fullName,
         email: user.email,
         role: user.role,
       },
@@ -91,7 +108,7 @@ class AuthService {
 
     return {
       id: user.id,
-      name: user.name,
+      fullName: user.fullName,
       email: user.email,
       role: user.role,
     };

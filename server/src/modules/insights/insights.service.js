@@ -1,5 +1,6 @@
 const insightsRepository = require('./insights.repository');
 const promptBuilder = require('./prompt.builder');
+const geminiService = require('../../services/gemini.service');
 const { mapInsight } = require('./insights.mapper');
 const {
   validateCreateInsight,
@@ -104,16 +105,30 @@ class InsightsService {
 
   async generateInsight(body) {
     const payload = validateGenerateInsight(body);
-
     const prompt = await promptBuilder.build(payload.type, payload);
 
-    let generatedResponse = '';
+    let generatedResponse;
     let confidenceScore = 0.86;
 
-    generatedResponse =
-      `AI-generated ${payload.type.toLowerCase()} insight:\n\n` +
-      `This planning snapshot indicates notable financial movement and should be reviewed for cost-risk balance, execution timing, and operational impact. ` +
-      `Focus on the biggest variance drivers, validate assumptions behind the scenario or forecast, and align next actions with budget discipline and growth priorities.`;
+    try {
+      generatedResponse = await geminiService.generateFinanceSummary({
+        type: payload.type,
+        title: `${payload.type} Insight`,
+        promptContext: prompt,
+        organizationId: payload.organizationId,
+        budgetId: payload.budgetId,
+        budgetVersionId: payload.budgetVersionId,
+        scenarioId: payload.scenarioId,
+        userId: payload.userId,
+        metrics: payload.metrics || null,
+        assumptions: payload.assumptions || null,
+      });
+    } catch (error) {
+      generatedResponse =
+        `AI-generated ${payload.type.toLowerCase()} insight:\n\n` +
+        `This planning snapshot suggests notable financial movement. Review major variance drivers, validate assumptions, and prioritize actions that improve cash efficiency, margin protection, and execution discipline.`;
+      confidenceScore = 0.72;
+    }
 
     const createdInsight = await insightsRepository.create({
       title: `${payload.type} Insight`,
