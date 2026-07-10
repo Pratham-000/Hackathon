@@ -35,7 +35,7 @@ async function main() {
       data: {
         fullName: 'Pratham Arora',
         email: 'admin@budgetiq.com',
-        passwordHash: 'hashed-password',
+        passwordHash: '$2b$10$l5wIV/xB/Q3Fz57O4SeqmOak.zy9k6Xq1vmfw08CEfYABYb4IhTmq',
         role: UserRole.ORG_ADMIN,
         organizationId: organization.id,
       },
@@ -44,7 +44,7 @@ async function main() {
       data: {
         fullName: 'Riya Finance',
         email: 'finance@budgetiq.com',
-        passwordHash: 'hashed-password',
+        passwordHash: '$2b$10$l5wIV/xB/Q3Fz57O4SeqmOak.zy9k6Xq1vmfw08CEfYABYb4IhTmq',
         role: UserRole.FINANCE_MANAGER,
         organizationId: organization.id,
       },
@@ -53,7 +53,7 @@ async function main() {
       data: {
         fullName: 'Arjun HR',
         email: 'hr@budgetiq.com',
-        passwordHash: 'hashed-password',
+        passwordHash: '$2b$10$l5wIV/xB/Q3Fz57O4SeqmOak.zy9k6Xq1vmfw08CEfYABYb4IhTmq',
         role: UserRole.HR_MANAGER,
         organizationId: organization.id,
       },

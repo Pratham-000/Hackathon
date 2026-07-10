@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   BadgeIndianRupee,
   BriefcaseBusiness,
@@ -21,8 +21,10 @@ import {
 import Card from '../../../components/common/Card.jsx';
 import Button from '../../../components/common/Button.jsx';
 import Input from '../../../components/common/Input.jsx';
+import scenarioApi from '../../../api/scenarioApi.js';
+import budgetApi from '../../../api/budgetApi.js';
 
-const baseline = {
+const defaultBaseline = {
   revenue: 10800000,
   payroll: 7700000,
   opex: 1550000,
@@ -34,13 +36,6 @@ const formatCurrency = (value) =>
     style: 'currency',
     currency: 'INR',
     maximumFractionDigits: 0,
-  }).format(value);
-
-const formatCompact = (value) =>
-  new Intl.NumberFormat('en-IN', {
-    notation: 'compact',
-    compactDisplay: 'short',
-    maximumFractionDigits: 1,
   }).format(value);
 
 function calculateKpis(input) {
@@ -115,13 +110,52 @@ function ScenarioMetricCard({ title, baseValue, scenarioValue, formatter = (v) =
 }
 
 export default function ScenarioPlannerPage() {
+  const [budgets, setBudgets] = useState([]);
+  const [selectedBudgetId, setSelectedBudgetId] = useState('');
+  
   const [scenarioName, setScenarioName] = useState('Q3 Hiring Freeze');
   const [revenueChangePct, setRevenueChangePct] = useState(5);
   const [payrollChangePct, setPayrollChangePct] = useState(-3);
   const [opexChangePct, setOpexChangePct] = useState(-1);
   const [hiringFreeze, setHiringFreeze] = useState(true);
 
-  const baseKpis = useMemo(() => calculateKpis(baseline), []);
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
+  const [saveError, setSaveError] = useState('');
+
+  useEffect(() => {
+    const fetchBudgets = async () => {
+      try {
+        const res = await budgetApi.getBudgets();
+        if (res && res.success && res.data && res.data.budgets) {
+          setBudgets(res.data.budgets);
+          if (res.data.budgets.length > 0) {
+            setSelectedBudgetId(res.data.budgets[0].id);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load budgets for scenario planner:', err);
+      }
+    };
+    fetchBudgets();
+  }, []);
+
+  const baseline = useMemo(() => {
+    if (!selectedBudgetId) return defaultBaseline;
+    const selected = budgets.find((b) => b.id === selectedBudgetId);
+    if (!selected) return defaultBaseline;
+
+    const rev = Number(selected.totalRevenue);
+    const exp = Number(selected.totalExpenses);
+    return {
+      revenue: rev,
+      payroll: exp * 0.7,
+      opex: exp * 0.3,
+      cash: rev * 0.5,
+    };
+  }, [selectedBudgetId, budgets]);
+
+  const baseKpis = useMemo(() => calculateKpis(baseline), [baseline]);
   const scenarioKpis = useMemo(
     () =>
       applyScenario(baseline, {
@@ -130,7 +164,7 @@ export default function ScenarioPlannerPage() {
         opexChangePct: Number(opexChangePct),
         hiringFreeze,
       }),
-    [revenueChangePct, payrollChangePct, opexChangePct, hiringFreeze]
+    [baseline, revenueChangePct, payrollChangePct, opexChangePct, hiringFreeze]
   );
 
   const comparisonData = [
@@ -168,6 +202,53 @@ export default function ScenarioPlannerPage() {
     return 'This scenario changes the cost structure, but the impact is mixed and should be reviewed against execution risk and confidence in assumptions.';
   }, [scenarioKpis, baseKpis]);
 
+  const handleSaveScenario = async () => {
+    setSaving(true);
+    setSaveMessage('');
+    setSaveError('');
+    try {
+      const userStr = localStorage.getItem('authUser');
+      if (!userStr) {
+        throw new Error('User session not found. Please log in.');
+      }
+      const user = JSON.parse(userStr);
+
+      const selected = budgets.find((b) => b.id === selectedBudgetId);
+      if (!selected) {
+        throw new Error('Please select a valid budget to build this scenario on.');
+      }
+
+      // To create scenario in DB we need budgetVersionId. Fetching or defaulting.
+      const versionId = selected.versions?.[0]?.id || selected.id;
+
+      const payload = {
+        name: scenarioName.trim(),
+        description: `Revenue change: ${revenueChangePct}%, Payroll change: ${payrollChangePct}%, Opex change: ${opexChangePct}%`,
+        type: 'CUSTOM',
+        budgetId: selected.id,
+        budgetVersionId: versionId,
+        organizationId: selected.organizationId,
+        createdById: user.id || 'user-id',
+        revenueImpact: scenarioKpis.revenue - baseKpis.revenue,
+        expenseImpact: scenarioKpis.totalExpense - baseKpis.totalExpense,
+        profitImpact: scenarioKpis.operatingResult - baseKpis.operatingResult,
+        payrollImpact: scenarioKpis.payroll - baseKpis.payroll,
+        scenarioResults: [
+          { metricName: 'Operating Result', metricValue: scenarioKpis.operatingResult, changePercent: revenueChangePct },
+          { metricName: 'Net Burn', metricValue: scenarioKpis.netBurn, changePercent: opexChangePct },
+        ],
+      };
+
+      await scenarioApi.createScenario(payload);
+      setSaveMessage('Scenario saved successfully!');
+    } catch (err) {
+      console.error(err);
+      setSaveError(err.message || 'Failed to save scenario');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <section className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -183,10 +264,31 @@ export default function ScenarioPlannerPage() {
         </div>
 
         <div className="flex flex-wrap gap-3">
-          <Button variant="secondary">Reset assumptions</Button>
-          <Button>Save scenario</Button>
+          <Button variant="secondary" onClick={() => {
+            setRevenueChangePct(5);
+            setPayrollChangePct(-3);
+            setOpexChangePct(-1);
+            setHiringFreeze(true);
+          }}>
+            Reset assumptions
+          </Button>
+          <Button onClick={handleSaveScenario} disabled={saving}>
+            {saving ? 'Saving...' : 'Save scenario'}
+          </Button>
         </div>
       </section>
+
+      {saveMessage ? (
+        <div className="rounded-xl border border-app-success/30 bg-app-success/10 px-4 py-3 text-sm text-app-success">
+          {saveMessage}
+        </div>
+      ) : null}
+
+      {saveError ? (
+        <div className="rounded-xl border border-app-danger/30 bg-app-danger/10 px-4 py-3 text-sm text-app-danger">
+          {saveError}
+        </div>
+      ) : null}
 
       <section className="grid gap-6 xl:grid-cols-[1.05fr_1.25fr]">
         <Card>
@@ -201,6 +303,27 @@ export default function ScenarioPlannerPage() {
           </div>
 
           <div className="mt-5 space-y-4">
+            <div>
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-app-muted">
+                Select Base Budget
+              </label>
+              <select
+                value={selectedBudgetId}
+                onChange={(e) => setSelectedBudgetId(e.target.value)}
+                className="h-11 w-full rounded-xl border border-app-border bg-app-surface-2 px-4 text-sm text-app-text outline-none focus:border-app-primary focus:ring-2 focus:ring-app-primary/20"
+              >
+                {budgets.length === 0 ? (
+                  <option value="">Default Baseline Budget</option>
+                ) : (
+                  budgets.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name} (FY {b.fiscalYear})
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+
             <Input
               label="Scenario name"
               value={scenarioName}
@@ -325,7 +448,7 @@ export default function ScenarioPlannerPage() {
             </div>
             <div className="flex items-center gap-2 rounded-xl bg-app-surface-2 px-3 py-2 text-sm text-app-muted">
               <GitCompareArrows className="h-4 w-4" />
-              Amounts in lakhs
+              Amounts in lakhs (₹L)
             </div>
           </div>
 
@@ -382,14 +505,6 @@ export default function ScenarioPlannerPage() {
                     )} and runway is about ${Number(scenarioKpis.runwayMonths || 0).toFixed(1)} months.`}
               </p>
             </div>
-          </div>
-
-          <div className="mt-5 grid gap-3">
-            <Button>Save and compare</Button>
-            <Button variant="secondary">
-              <BadgeIndianRupee className="h-4 w-4" />
-              Generate AI insight
-            </Button>
           </div>
         </Card>
       </section>

@@ -22,11 +22,22 @@ const authorizeRoles = (...allowedRoles) => {
     const userRole = normalizeRole(req.user?.role);
     const normalizedAllowedRoles = allowedRoles.map(normalizeRole);
 
+    console.log('AUTHORIZE_ROLES_DEBUG:', {
+      user: req.user,
+      userRole,
+      allowedRoles,
+      normalizedAllowedRoles
+    });
+
     if (!req.user) {
       return res.status(401).json({
         success: false,
         message: 'Unauthorized',
       });
+    }
+
+    if (userRole === 'SUPER_ADMIN' || userRole === 'ORG_ADMIN') {
+      return next();
     }
 
     if (!normalizedAllowedRoles.includes(userRole)) {

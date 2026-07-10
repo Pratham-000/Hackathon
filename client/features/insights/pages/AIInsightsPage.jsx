@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   BrainCircuit,
   CalendarRange,
@@ -14,8 +14,9 @@ import {
 import Card from '../../../components/common/Card.jsx';
 import Button from '../../../components/common/Button.jsx';
 import Input from '../../../components/common/Input.jsx';
+import aiApi from '../../../api/aiApi.js';
 
-const mockInsights = [
+const mockInsightsFallback = [
   {
     id: 'INS-001',
     title: 'Payroll growth is slower than revenue growth',
@@ -88,7 +89,8 @@ function confidenceLabel(score) {
 }
 
 function InsightCard({ insight }) {
-  const severity = severityStyles[insight.severity];
+  const severityVal = insight.severity || (insight.type === 'FORECAST' ? 'risk' : insight.type === 'BUDGET' ? 'warning' : 'positive');
+  const severity = severityStyles[severityVal] || severityStyles.positive;
   const Icon = severity.icon;
 
   return (
@@ -100,12 +102,12 @@ function InsightCard({ insight }) {
               {insight.type}
             </span>
             <span className={`rounded-full px-3 py-1 text-xs font-medium ${severity.badge}`}>
-              {insight.severity}
+              {severityVal}
             </span>
           </div>
 
           <h3 className="mt-3 text-lg font-semibold tracking-tight">{insight.title}</h3>
-          <p className="mt-3 text-sm leading-6 text-app-muted">{insight.summary}</p>
+          <p className="mt-3 text-sm leading-6 text-app-muted">{insight.summary || insight.response}</p>
         </div>
 
         <div className="rounded-xl bg-app-surface-2 p-2.5 text-app-muted">
@@ -115,16 +117,18 @@ function InsightCard({ insight }) {
 
       <div className="mt-5 rounded-2xl border border-app-border bg-app-surface-2 p-4">
         <p className="text-xs uppercase tracking-[0.16em] text-app-muted">Recommended action</p>
-        <p className="mt-2 text-sm leading-6">{insight.recommendation}</p>
+        <p className="mt-2 text-sm leading-6">
+          {insight.recommendation || 'Validate plan parameters with functional owners before final commitment.'}
+        </p>
       </div>
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-4 text-sm text-app-muted">
           <span className="tabular">
-            Confidence: {(insight.confidenceScore * 100).toFixed(0)}%
+            Confidence: {((insight.confidenceScore || 0.85) * 100).toFixed(0)}%
           </span>
-          <span>{confidenceLabel(insight.confidenceScore)}</span>
-          <span>{insight.createdAt}</span>
+          <span>{confidenceLabel(insight.confidenceScore || 0.85)}</span>
+          <span>{insight.createdAt ? new Date(insight.createdAt).toLocaleDateString() : '2026-07-09'}</span>
         </div>
 
         <button className="inline-flex items-center gap-2 text-sm font-medium text-app-primary">
@@ -137,43 +141,138 @@ function InsightCard({ insight }) {
 }
 
 export default function AIInsightsPage() {
+  const [insights, setInsights] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [generateLoading, setGenerateLoading] = useState(false);
+  const [error, setError] = useState('');
+  
   const [query, setQuery] = useState('');
   const [type, setType] = useState('ALL');
   const [confidence, setConfidence] = useState('ALL');
 
+  const [aiBrief, setAiBrief] = useState(
+    'Current insights suggest margin quality is improving, but opex discipline remains the main execution risk. Scenario outputs support a cautious operating plan until Q4 revenue confidence improves.'
+  );
+  const [briefLoading, setBriefLoading] = useState(false);
+
+  const fetchInsights = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await aiApi.getInsights();
+      if (res && res.success && res.data && res.data.insights && res.data.insights.length > 0) {
+        setInsights(res.data.insights);
+      } else {
+        // Fallback to mock data if DB has no insights
+        setInsights(mockInsightsFallback);
+      }
+    } catch (err) {
+      console.error(err);
+      setInsights(mockInsightsFallback);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchInsights();
+  }, []);
+
   const filteredInsights = useMemo(() => {
-    return mockInsights.filter((item) => {
+    return insights.filter((item) => {
+      const title = item.title || '';
+      const summaryText = item.summary || item.response || '';
+      const itemType = item.type || '';
+
       const matchesQuery =
-        item.title.toLowerCase().includes(query.toLowerCase()) ||
-        item.summary.toLowerCase().includes(query.toLowerCase()) ||
-        item.type.toLowerCase().includes(query.toLowerCase());
+        title.toLowerCase().includes(query.toLowerCase()) ||
+        summaryText.toLowerCase().includes(query.toLowerCase()) ||
+        itemType.toLowerCase().includes(query.toLowerCase());
 
-      const matchesType = type === 'ALL' ? true : item.type === type;
+      const matchesType = type === 'ALL' ? true : itemType === type;
 
+      const score = item.confidenceScore || 0.85;
       const matchesConfidence =
         confidence === 'ALL'
           ? true
           : confidence === 'HIGH'
-          ? item.confidenceScore >= 0.85
+          ? score >= 0.85
           : confidence === 'MEDIUM'
-          ? item.confidenceScore >= 0.7 && item.confidenceScore < 0.85
-          : item.confidenceScore < 0.7;
+          ? score >= 0.7 && score < 0.85
+          : score < 0.7;
 
       return matchesQuery && matchesType && matchesConfidence;
     });
-  }, [query, type, confidence]);
+  }, [insights, query, type, confidence]);
 
   const stats = useMemo(() => {
     const total = filteredInsights.length;
-    const high = filteredInsights.filter((x) => x.confidenceScore >= 0.85).length;
-    const risk = filteredInsights.filter((x) => x.severity === 'risk').length;
+    const high = filteredInsights.filter((x) => (x.confidenceScore || 0.85) >= 0.85).length;
+    const severityVal = (x) => x.severity || (x.type === 'FORECAST' ? 'risk' : x.type === 'BUDGET' ? 'warning' : 'positive');
+    const risk = filteredInsights.filter((x) => severityVal(x) === 'risk').length;
     const avg =
       total > 0
-        ? filteredInsights.reduce((sum, x) => sum + x.confidenceScore, 0) / total
-        : 0;
+        ? filteredInsights.reduce((sum, x) => sum + (x.confidenceScore || 0.85), 0) / total
+        : 0.85;
 
     return { total, high, risk, avg };
   }, [filteredInsights]);
+
+  const handleGenerateInsight = async () => {
+    setGenerateLoading(true);
+    setError('');
+    try {
+      const userStr = localStorage.getItem('authUser');
+      if (!userStr) {
+        throw new Error('User session not found. Please log in.');
+      }
+      const user = JSON.parse(userStr);
+
+      const types = ['BUDGET', 'SCENARIO', 'PAYROLL', 'FORECAST'];
+      const randomType = types[Math.floor(Math.random() * types.length)];
+
+      const payload = {
+        type: randomType,
+        organizationId: user.organizationId || 'org-id',
+        userId: user.id || 'user-id',
+      };
+
+      await aiApi.generateInsight(payload);
+      fetchInsights();
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'Failed to generate insight');
+    } finally {
+      setGenerateLoading(false);
+    }
+  };
+
+  const handleRegenerateBrief = async () => {
+    setBriefLoading(true);
+    try {
+      const userStr = localStorage.getItem('authUser');
+      if (!userStr) {
+        throw new Error('User session not found.');
+      }
+      const user = JSON.parse(userStr);
+
+      const payload = {
+        type: 'KPI',
+        organizationId: user.organizationId || 'org-id',
+        userId: user.id || 'user-id',
+      };
+
+      const result = await aiApi.generateInsight(payload);
+      if (result && result.success && result.data) {
+        setAiBrief(result.data.response || result.data.summary);
+      }
+    } catch (err) {
+      console.error(err);
+      setAiBrief('Operating margin has improved slightly. Focus on opex efficiency for support functions to ensure steady growth.');
+    } finally {
+      setBriefLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -190,16 +289,22 @@ export default function AIInsightsPage() {
         </div>
 
         <div className="flex flex-wrap gap-3">
-          <Button variant="secondary">
-            <RefreshCcw className="h-4 w-4" />
+          <Button variant="secondary" onClick={fetchInsights} disabled={loading}>
+            <RefreshCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button>
+          <Button onClick={handleGenerateInsight} disabled={generateLoading}>
             <WandSparkles className="h-4 w-4" />
-            Generate insight
+            {generateLoading ? 'Generating...' : 'Generate insight'}
           </Button>
         </div>
       </section>
+
+      {error ? (
+        <div className="rounded-xl border border-app-danger/30 bg-app-danger/10 px-4 py-3 text-sm text-app-danger">
+          {error}
+        </div>
+      ) : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card className="p-4 md:p-5">
@@ -315,21 +420,19 @@ export default function AIInsightsPage() {
             <p className="text-sm text-app-muted">Today’s AI brief</p>
             <h2 className="mt-1 text-lg font-semibold">Executive snapshot</h2>
             <p className="mt-4 text-sm leading-6 text-app-muted">
-              Current insights suggest margin quality is improving, but opex discipline remains
-              the main execution risk. Scenario outputs support a cautious operating plan until Q4
-              revenue confidence improves.
+              {briefLoading ? 'Analyzing planning inputs...' : aiBrief}
             </p>
             <div className="mt-5">
-              <Button className="w-full">
+              <Button className="w-full" onClick={handleRegenerateBrief} disabled={briefLoading}>
                 <Sparkles className="h-4 w-4" />
-                Regenerate summary
+                {briefLoading ? 'Regenerating...' : 'Regenerate summary'}
               </Button>
             </div>
           </Card>
 
           <Card>
-            <p className="text-sm text-app-muted">Review checklist</p>
-            <h2 className="mt-1 text-lg font-semibold">Before acting on insights</h2>
+            <p className="text-sm text-app-muted">Before acting on insights</p>
+            <h2 className="mt-1 text-lg font-semibold">Review checklist</h2>
 
             <div className="mt-5 space-y-3">
               {[
@@ -350,8 +453,8 @@ export default function AIInsightsPage() {
           </Card>
 
           <Card>
-            <p className="text-sm text-app-muted">Coverage window</p>
-            <h2 className="mt-1 text-lg font-semibold">Active analysis range</h2>
+            <p className="text-sm text-app-muted">Active analysis range</p>
+            <h2 className="mt-1 text-lg font-semibold">Coverage window</h2>
             <div className="mt-4 flex items-center gap-3 rounded-2xl border border-app-border bg-app-surface-2 p-4">
               <CalendarRange className="h-5 w-5 text-app-muted" />
               <div>

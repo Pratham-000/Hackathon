@@ -65,6 +65,37 @@ class EmployeeRepository {
       },
     });
   }
+
+  async create(data) {
+    return prisma.employee.create({
+      data,
+      include: {
+        department: true,
+        role: true,
+      },
+    });
+  }
+
+  async update(id, data) {
+    return prisma.employee.update({
+      where: { id },
+      data,
+      include: {
+        department: true,
+        role: true,
+      },
+    });
+  }
+
+  async delete(id) {
+    return prisma.employee.delete({
+      where: { id },
+      include: {
+        department: true,
+        role: true,
+      },
+    });
+  }
 }
 
 module.exports = new EmployeeRepository();

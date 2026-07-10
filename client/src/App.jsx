@@ -9,7 +9,9 @@ import UnauthorizedPage from '../pages/UnauthorizedPage.jsx';
 import AIInsightsPage from '../features/insights/pages/AIInsightsPage.jsx';
 import BudgetsPage from '../features/budgets/pages/BudgetsPage.jsx';
 import ScenarioPlannerPage from '../features/scenarios/pages/ScenarioPlannerPage.jsx';
-import PayrollTable from '../components/financial/PayrollTable.jsx';
+import PayrollPage from '../features/payroll/pages/PayrollPage.jsx';
+import EmployeesPage from '../features/employees/pages/EmployeesPage.jsx';
+import ReportsPage from '../features/reports/pages/ReportsPage.jsx';
 
 const isAuthenticated = () => Boolean(localStorage.getItem('authToken'));
 
@@ -26,8 +28,10 @@ export default function App() {
           <Route path="/budgets" element={<BudgetsPage />} />
           <Route path="/scenarios" element={<ScenarioPlannerPage />} />
           <Route path="/insights" element={<AIInsightsPage />} />
+          <Route path="/employees" element={<EmployeesPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
-          <Route path="/payroll" element={<PayrollTable />} />
+          <Route path="/payroll" element={<PayrollPage />} />
         </Route>
       </Route>
 

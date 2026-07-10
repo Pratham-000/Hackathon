@@ -1,4 +1,5 @@
 const budgetRepository = require('./budget.repository');
+const prisma = require('../../config/db');
 const { mapBudget } = require('./budget.mapper');
 const {
   validateCreateBudget,
@@ -54,7 +55,22 @@ class BudgetService {
   async createBudget(body) {
     const payload = validateCreateBudget(body);
     const createdBudget = await budgetRepository.create(payload);
-    return mapBudget(createdBudget);
+
+    await prisma.budgetVersion.create({
+      data: {
+        versionNumber: 1,
+        name: 'v1.0 - Draft Baseline',
+        status: 'DRAFT',
+        revenue: createdBudget.totalRevenue,
+        expenses: createdBudget.totalExpenses,
+        profit: createdBudget.totalProfit,
+        budgetId: createdBudget.id,
+        createdById: createdBudget.createdById,
+      },
+    });
+
+    const budget = await budgetRepository.findById(createdBudget.id);
+    return mapBudget(budget);
   }
 
   async updateBudget(id, body) {

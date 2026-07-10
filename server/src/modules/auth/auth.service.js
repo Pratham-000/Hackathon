@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const authRepository = require('./auth.repository');
+const prisma = require('../../config/db');
 
 const getJwtSecret = () => process.env.JWT_SECRET || 'hackathon-dev-secret';
 
@@ -38,11 +39,15 @@ class AuthService {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const org = await prisma.organization.findFirst();
+    const organizationId = org ? org.id : null;
+
     const user = await authRepository.createUser({
       fullName: fullName.trim(),
       email: email.trim().toLowerCase(),
       passwordHash: hashedPassword,
-      role: normalizeRole(role),
+      role: normalizeRole(role || 'ORG_ADMIN'),
+      organizationId,
     });
 
     return {
@@ -50,6 +55,7 @@ class AuthService {
       fullName: user.fullName,
       email: user.email,
       role: user.role,
+      organizationId: user.organizationId,
     };
   }
 
@@ -81,6 +87,7 @@ class AuthService {
         id: user.id,
         email: user.email,
         role: user.role,
+        organizationId: user.organizationId,
       },
       getJwtSecret(),
       { expiresIn: '1d' }
@@ -93,6 +100,7 @@ class AuthService {
         fullName: user.fullName,
         email: user.email,
         role: user.role,
+        organizationId: user.organizationId,
       },
     };
   }

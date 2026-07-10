@@ -3,6 +3,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 class GeminiService {
   constructor() {
     this.apiKey = process.env.GEMINI_API_KEY;
+    this.groqApiKey = process.env.GROQ_API_KEY;
     this.modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 
     if (this.apiKey) {
@@ -14,8 +15,8 @@ class GeminiService {
   }
 
   ensureConfigured() {
-    if (!this.apiKey || !this.model) {
-      const error = new Error('Gemini service is not configured');
+    if (!this.groqApiKey && (!this.apiKey || !this.model)) {
+      const error = new Error('AI service (Gemini or Groq) is not configured');
       error.statusCode = 500;
       throw error;
     }
@@ -23,6 +24,31 @@ class GeminiService {
 
   async generateText(prompt, options = {}) {
     this.ensureConfigured();
+
+    if (this.groqApiKey) {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.groqApiKey}`
+        },
+        body: JSON.stringify({
+          model: 'llama-3.1-8b-instant',
+          messages: [
+            { role: 'user', content: prompt }
+          ],
+          temperature: options.temperature ?? 0.3
+        })
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Groq API call failed: ${response.status} - ${errText}`);
+      }
+
+      const data = await response.json();
+      return data.choices[0].message.content;
+    }
 
     const result = await this.model.generateContent({
       contents: [

@@ -19,19 +19,21 @@ class AuthRepository {
     });
   }
 
-  async createUser({ fullName, email, passwordHash, role }) {
+  async createUser({ fullName, email, passwordHash, role, organizationId }) {
     return prisma.user.create({
       data: {
         fullName,
         email,
         passwordHash,
         role,
+        organizationId,
       },
       select: {
         id: true,
         fullName: true,
         email: true,
         role: true,
+        organizationId: true,
       },
     });
   }

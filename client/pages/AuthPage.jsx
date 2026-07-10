@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import Button from '../components/common/Button.jsx';
 import Input from '../components/common/Input.jsx';
-import { authApi } from '../api/authApi.js';
+import authApi from '../api/authApi.js';
 
 const initialForm = {
   fullName: '',

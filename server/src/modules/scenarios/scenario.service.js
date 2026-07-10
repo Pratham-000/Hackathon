@@ -1,4 +1,5 @@
 const scenarioRepository = require('./scenario.repository');
+const prisma = require('../../config/db');
 const { mapScenario } = require('./scenario.mapper');
 const {
   validateCreateScenario,
@@ -51,6 +52,35 @@ class ScenarioService {
   }
 
   async createScenario(body) {
+    let budgetVersionId = body.budgetVersionId;
+    if (budgetVersionId === body.budgetId || !budgetVersionId) {
+      const existingVersion = await prisma.budgetVersion.findFirst({
+        where: { budgetId: body.budgetId }
+      });
+      
+      if (existingVersion) {
+        budgetVersionId = existingVersion.id;
+      } else {
+        const budget = await prisma.budget.findUnique({ where: { id: body.budgetId } });
+        if (budget) {
+          const newVersion = await prisma.budgetVersion.create({
+            data: {
+              versionNumber: 1,
+              name: 'v1.0 - Draft Baseline',
+              status: 'DRAFT',
+              revenue: budget.totalRevenue,
+              expenses: budget.totalExpenses,
+              profit: budget.totalProfit,
+              budgetId: budget.id,
+              createdById: body.createdById,
+            }
+          });
+          budgetVersionId = newVersion.id;
+        }
+      }
+      body.budgetVersionId = budgetVersionId;
+    }
+
     const payload = validateCreateScenario(body);
 
     if (payload.assumptionIds.length > 0) {

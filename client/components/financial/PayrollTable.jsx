@@ -1,231 +1,126 @@
-import { ChevronRight, Download, Filter, Wallet } from 'lucide-react';
-import Button from '../common/Button.jsx';
+import { MoreHorizontal } from 'lucide-react';
 import Card from '../common/Card.jsx';
+import Button from '../common/Button.jsx';
 
 const defaultRows = [
   {
-    id: 'PAY-2026-07-001',
-    employeeName: 'Aarav Mehta',
+    id: 'EMP-001',
+    name: 'Ananya Patel',
     department: 'Engineering',
-    month: 'Jul 2026',
-    baseSalary: 220000,
-    bonus: 15000,
-    deductions: 12000,
-    netPayroll: 223000,
+    salary: 185000,
+    bonus: 25000,
     status: 'Processed',
+    month: 'Jun 2026',
   },
   {
-    id: 'PAY-2026-07-002',
-    employeeName: 'Priya Nair',
+    id: 'EMP-002',
+    name: 'Rohit Mehra',
     department: 'Finance',
-    month: 'Jul 2026',
-    baseSalary: 185000,
-    bonus: 10000,
-    deductions: 9000,
-    netPayroll: 186000,
-    status: 'Processed',
-  },
-  {
-    id: 'PAY-2026-07-003',
-    employeeName: 'Rohan Kapoor',
-    department: 'Sales',
-    month: 'Jul 2026',
-    baseSalary: 165000,
-    bonus: 28000,
-    deductions: 11000,
-    netPayroll: 182000,
+    salary: 142000,
+    bonus: 18000,
     status: 'Pending',
+    month: 'Jun 2026',
   },
   {
-    id: 'PAY-2026-07-004',
-    employeeName: 'Megha Iyer',
-    department: 'HR',
-    month: 'Jul 2026',
-    baseSalary: 142000,
-    bonus: 8000,
-    deductions: 7000,
-    netPayroll: 143000,
+    id: 'EMP-003',
+    name: 'Priya Nair',
+    department: 'Operations',
+    salary: 128000,
+    bonus: 12000,
     status: 'Processed',
+    month: 'Jun 2026',
+  },
+  {
+    id: 'EMP-004',
+    name: 'Karan Shah',
+    department: 'Sales',
+    salary: 156000,
+    bonus: 30000,
+    status: 'Review',
+    month: 'Jun 2026',
   },
 ];
 
-const statusStyles = {
-  Processed: 'bg-app-success/10 text-app-success',
-  Pending: 'bg-app-warning/10 text-app-warning',
-  Failed: 'bg-app-danger/10 text-app-danger',
+const statusClasses = {
+  Processed: 'bg-app-success/15 text-app-success',
+  Pending: 'bg-app-warning/15 text-app-warning',
+  Review: 'bg-app-primary/15 text-app-primary',
 };
-
-const formatCurrency = (value) =>
-  new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0,
-  }).format(Number(value || 0));
 
 export default function PayrollTable({
   rows = defaultRows,
   title = 'Payroll register',
-  subtitle = 'Monthly compensation review',
-  showActions = true,
-  compact = false,
+  description = 'Review payroll records, payouts, and current processing state.',
+  onRowAction,
 }) {
-  if (!rows?.length) {
-    return (
-      <Card className="p-8 text-center">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-app-surface-2 text-app-muted">
-          <Wallet className="h-6 w-6" />
-        </div>
-        <h3 className="mt-4 text-lg font-semibold">No payroll records found</h3>
-        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-app-muted">
-          Payroll entries will appear here after records are generated or synced from your backend.
-        </p>
-      </Card>
-    );
-  }
-
   return (
-    <Card className={compact ? 'p-0' : 'overflow-hidden p-0'}>
-      <div className="flex flex-col gap-4 border-b border-app-border px-5 py-4 md:flex-row md:items-center md:justify-between md:px-6">
-        <div>
-          <p className="text-sm text-app-muted">{subtitle}</p>
-          <h2 className="mt-1 text-lg font-semibold">{title}</h2>
-        </div>
-
-        {showActions ? (
-          <div className="flex flex-wrap gap-3">
-            <Button variant="secondary" size="sm">
-              <Filter className="h-4 w-4" />
-              Filter
-            </Button>
-            <Button variant="secondary" size="sm">
-              <Download className="h-4 w-4" />
-              Export
-            </Button>
-          </div>
-        ) : null}
+    <Card className="overflow-hidden p-0">
+      <div className="border-b border-app-border px-5 py-4 md:px-6">
+        <p className="text-sm text-app-muted">{description}</p>
+        <h3 className="mt-1 text-lg font-semibold tracking-tight text-app-text">
+          {title}
+        </h3>
       </div>
 
-      <div className="hidden overflow-x-auto lg:block">
-        <table className="w-full text-left">
-          <thead className="bg-app-surface-2 text-sm text-app-muted">
-            <tr>
-              <th className="px-6 py-4 font-medium">Employee</th>
-              <th className="px-6 py-4 font-medium">Department</th>
-              <th className="px-6 py-4 font-medium">Month</th>
-              <th className="px-6 py-4 text-right font-medium">Base salary</th>
-              <th className="px-6 py-4 text-right font-medium">Bonus</th>
-              <th className="px-6 py-4 text-right font-medium">Deductions</th>
-              <th className="px-6 py-4 text-right font-medium">Net payroll</th>
-              <th className="px-6 py-4 font-medium">Status</th>
-              <th className="px-6 py-4 font-medium">Action</th>
+      <div className="overflow-x-auto">
+        <table className="min-w-full">
+          <thead className="bg-app-surface-2">
+            <tr className="text-left text-xs font-semibold uppercase tracking-[0.14em] text-app-muted">
+              <th className="px-5 py-3 md:px-6">Employee</th>
+              <th className="px-5 py-3">Department</th>
+              <th className="px-5 py-3">Month</th>
+              <th className="px-5 py-3 text-right">Salary</th>
+              <th className="px-5 py-3 text-right">Bonus</th>
+              <th className="px-5 py-3">Status</th>
+              <th className="px-5 py-3 text-right md:px-6">Action</th>
             </tr>
           </thead>
 
-          <tbody>
+          <tbody className="divide-y divide-app-border">
             {rows.map((row) => (
-              <tr
-                key={row.id}
-                className="border-t border-app-border bg-app-surface transition hover:bg-app-surface-2"
-              >
-                <td className="px-6 py-5">
+              <tr key={row.id} className="bg-app-surface">
+                <td className="px-5 py-4 md:px-6">
                   <div>
-                    <p className="font-medium">{row.employeeName}</p>
+                    <p className="font-medium text-app-text">{row.name}</p>
                     <p className="mt-1 text-sm text-app-muted">{row.id}</p>
                   </div>
                 </td>
 
-                <td className="px-6 py-5 text-sm">{row.department}</td>
-                <td className="px-6 py-5 text-sm text-app-muted">{row.month}</td>
+                <td className="px-5 py-4 text-sm text-app-muted">{row.department}</td>
+                <td className="px-5 py-4 text-sm text-app-muted">{row.month}</td>
 
-                <td className="tabular px-6 py-5 text-right text-sm">
-                  {formatCurrency(row.baseSalary)}
-                </td>
-                <td className="tabular px-6 py-5 text-right text-sm">
-                  {formatCurrency(row.bonus)}
-                </td>
-                <td className="tabular px-6 py-5 text-right text-sm">
-                  {formatCurrency(row.deductions)}
-                </td>
-                <td className="tabular px-6 py-5 text-right text-sm font-semibold">
-                  {formatCurrency(row.netPayroll)}
+                <td className="tabular px-5 py-4 text-right text-sm font-medium text-app-text">
+                  ₹{row.salary.toLocaleString('en-IN')}
                 </td>
 
-                <td className="px-6 py-5">
+                <td className="tabular px-5 py-4 text-right text-sm font-medium text-app-text">
+                  ₹{row.bonus.toLocaleString('en-IN')}
+                </td>
+
+                <td className="px-5 py-4">
                   <span
-                    className={`rounded-full px-3 py-1 text-xs font-medium ${
-                      statusStyles[row.status] || 'bg-app-surface-3 text-app-muted'
+                    className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${
+                      statusClasses[row.status] || 'bg-app-surface-2 text-app-muted'
                     }`}
                   >
                     {row.status}
                   </span>
                 </td>
 
-                <td className="px-6 py-5">
-                  <button className="inline-flex items-center gap-2 text-sm font-medium text-app-primary">
-                    View
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
+                <td className="px-5 py-4 text-right md:px-6">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onRowAction?.(row)}
+                    className="h-9 w-9 px-0"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
-
-      <div className="grid gap-4 p-4 lg:hidden">
-        {rows.map((row) => (
-          <div
-            key={row.id}
-            className="rounded-2xl border border-app-border bg-app-surface-2 p-4"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-medium">{row.employeeName}</p>
-                <p className="mt-1 text-sm text-app-muted">
-                  {row.department} · {row.month}
-                </p>
-              </div>
-
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-medium ${
-                  statusStyles[row.status] || 'bg-app-surface-3 text-app-muted'
-                }`}
-              >
-                {row.status}
-              </span>
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <p className="text-app-muted">Base salary</p>
-                <p className="tabular mt-1 font-medium">{formatCurrency(row.baseSalary)}</p>
-              </div>
-
-              <div>
-                <p className="text-app-muted">Bonus</p>
-                <p className="tabular mt-1 font-medium">{formatCurrency(row.bonus)}</p>
-              </div>
-
-              <div>
-                <p className="text-app-muted">Deductions</p>
-                <p className="tabular mt-1 font-medium">{formatCurrency(row.deductions)}</p>
-              </div>
-
-              <div>
-                <p className="text-app-muted">Net payroll</p>
-                <p className="tabular mt-1 font-semibold">{formatCurrency(row.netPayroll)}</p>
-              </div>
-            </div>
-
-            <div className="mt-4 flex items-center justify-between">
-              <p className="text-xs text-app-muted">{row.id}</p>
-              <button className="inline-flex items-center gap-2 text-sm font-medium text-app-primary">
-                View
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        ))}
       </div>
     </Card>
   );

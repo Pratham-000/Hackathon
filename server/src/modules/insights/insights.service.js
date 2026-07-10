@@ -1,6 +1,7 @@
 const insightsRepository = require('./insights.repository');
 const promptBuilder = require('./prompt.builder');
 const geminiService = require('../../services/gemini.service');
+const prisma = require('../../config/db');
 const { mapInsight } = require('./insights.mapper');
 const {
   validateCreateInsight,
@@ -104,6 +105,27 @@ class InsightsService {
   }
 
   async generateInsight(body) {
+    if (!body.organizationId || body.organizationId === 'org-id') {
+      const org = await prisma.organization.findFirst();
+      if (org) body.organizationId = org.id;
+    }
+
+    if (!body.budgetId) {
+      const budget = await prisma.budget.findFirst({
+        where: { organizationId: body.organizationId }
+      });
+      if (budget) {
+        body.budgetId = budget.id;
+      }
+    }
+
+    if (!body.scenarioId) {
+      const scenario = await prisma.scenario.findFirst({
+        where: { organizationId: body.organizationId }
+      });
+      if (scenario) body.scenarioId = scenario.id;
+    }
+
     const payload = validateGenerateInsight(body);
     const prompt = await promptBuilder.build(payload.type, payload);
 
